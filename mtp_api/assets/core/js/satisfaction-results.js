@@ -1,29 +1,13 @@
 /* globals django, google, satisfactionResultsData */
 
-django.jQuery(function($) {
+django.jQuery(function ($) {
   'use strict';
 
   var colourScale = ['#ff800e', '#ffbc79', '#cfcfcf', '#a2c8ec', '#5f9ed1', '#dcdcdc'];
   var colours = ['#666', '#79aec8'];
   var font = 'Roboto, "Lucida Grande", Verdana, Arial, sans-serif';
 
-  google.charts.setOnLoadCallback(function() {
-    $.each(satisfactionResultsData.questions, function(index, question) {
-        var $chart = $('#satisfaction-results-chart-' + index),
-          chartData = new google.visualization.DataTable();
-
-        for (var column in satisfactionResultsData.columns) {
-          if (satisfactionResultsData.columns.hasOwnProperty(column)) {
-            chartData.addColumn(satisfactionResultsData.columns[column]);
-          }
-        }
-        chartData.addRows(question.rows);
-
-        drawTransactionReports($chart, chartData, question.means);
-    });
-  });
-
-  function drawTransactionReports($chart, chartData, means) {
+  function drawTransactionReports ($chart, chartData, means) {
     var chart = new google.visualization.ColumnChart($chart[0]);
 
     chart.draw(chartData, {
@@ -52,7 +36,7 @@ django.jQuery(function($) {
       colors: colours
     });
 
-    google.visualization.events.addListener(chart, 'ready', function() {
+    google.visualization.events.addListener(chart, 'ready', function () {
       var $svg = $chart.find('svg');
       var svgNamespace = $svg[0].namespaceURI;
       var cli = chart.getChartLayoutInterface();
@@ -61,7 +45,9 @@ django.jQuery(function($) {
       var significantWidth = chartBounds.width * 5 / 6;  // last option is disregarded
       var meanMarkerWidth = 12;
       var $hideOnMouseover = [];
-      var $chartDetails, $title, i;
+      var $chartDetails;
+      var $title;
+      var i;
 
       $chartDetails = $($svg.children('g')[1]).children('g');
       $chartDetails = $($chartDetails[0]).add($chartDetails[$chartDetails.length - 1]).attr({
@@ -92,11 +78,12 @@ django.jQuery(function($) {
           var mean = means[i];
           var $meanMarker = $(document.createElementNS(svgNamespace, 'rect'));
           var $meanTextMarker = $(document.createElementNS(svgNamespace, 'text'));
-          var x, y;
+          var x;
+          var y;
           if (mean === null) {
-            x = chartBounds.width * (1 - (1 / 6) + (1 / 12));
+            x = chartBounds.width * (1 - 1 / 6 + 1 / 12);
           } else {
-            x = significantWidth * (2 + mean) / 4
+            x = significantWidth * (2 + mean) / 4;
           }
           x = chartBounds.left + x - meanMarkerWidth / 2;
           y = chartBounds.top;
@@ -138,20 +125,20 @@ django.jQuery(function($) {
       });
       $svg.append($title);
 
-      $svg.on('mouseover', function() {
+      $svg.on('mouseover', function () {
         $chartDetails.attr({
           visibility: 'visible'
         });
-        $.each($hideOnMouseover, function() {
+        $.each($hideOnMouseover, function () {
           $(this).attr({
             visibility: 'hidden'
           });
         });
-      }).on('mouseout', function() {
+      }).on('mouseout', function () {
         $chartDetails.attr({
           visibility: 'hidden'
         });
-        $.each($hideOnMouseover, function() {
+        $.each($hideOnMouseover, function () {
           $(this).attr({
             visibility: 'visible'
           });
@@ -159,4 +146,20 @@ django.jQuery(function($) {
       });
     });
   }
+
+  google.charts.setOnLoadCallback(function () {
+    $.each(satisfactionResultsData.questions, function (index, question) {
+      var $chart = $('#satisfaction-results-chart-' + index);
+      var chartData = new google.visualization.DataTable();
+
+      for (var column in satisfactionResultsData.columns) {
+        if (satisfactionResultsData.columns.hasOwnProperty(column)) {
+          chartData.addColumn(satisfactionResultsData.columns[column]);
+        }
+      }
+      chartData.addRows(question.rows);
+
+      drawTransactionReports($chart, chartData, question.means);
+    });
+  });
 });

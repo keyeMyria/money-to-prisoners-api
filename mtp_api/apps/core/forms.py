@@ -33,4 +33,4 @@ class SidebarDateWidget(widgets.AdminDateWidget):
         css = {
             'all': ('admin/css/widgets.css', 'core/css/filter_form.css')
         }
-        js = ('core/js/calendar_overrides.js',)
+        js = ('core/js/vendor/calendar_overrides.js',)

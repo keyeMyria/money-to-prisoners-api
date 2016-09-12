@@ -1,63 +1,51 @@
 /* globals django, google, creditReportData */
 
-django.jQuery(function($) {
+django.jQuery(function ($) {
   'use strict';
 
   var $module = $('#id_credit_report');
   var $chart = $('#credit-chart');
   var normalStyles = {
-      font: 'Roboto, "Lucida Grande", Verdana, Arial, sans-serif',
-      lines: ['#79aec8', '#666'],
-      lineWidth: 4,
-      background: '#f9f9f9',
-      weekendBackground: '#ebebeb',
-      bar: {
-        groupWidth: '70%'
-      },
-      annotationTextStyle: {},
-      lengendTextStyle: {
-        color: '#000',
-        fontSize: 13
-      }
-    };
+    font: 'Roboto, "Lucida Grande", Verdana, Arial, sans-serif',
+    lines: ['#79aec8', '#666'],
+    lineWidth: 4,
+    background: '#f9f9f9',
+    weekendBackground: '#ebebeb',
+    bar: {
+      groupWidth: '70%'
+    },
+    annotationTextStyle: {},
+    lengendTextStyle: {
+      color: '#000',
+      fontSize: 13
+    }
+  };
   var standoutStyles = {
-      // colours and sizes optimised for philips tv
-      font: 'Roboto, "Lucida Grande", Verdana, Arial, sans-serif',
-      lines: ['#6f6', '#F3513F'],
-      lineWidth: 10,
-      background: '#111',
-      weekendBackground: '#2b2b2b',
-      bar: {
-        groupWidth: '95%'
-      },
-      annotationTextStyle: {
-        fontSize: 36,
-        fontWeight: 'bold'
-      },
-      lengendTextStyle: {
-        color: '#fff',
-        fontSize: 26
-      }
-    };
+    // colours and sizes optimised for philips tv
+    font: 'Roboto, "Lucida Grande", Verdana, Arial, sans-serif',
+    lines: ['#6f6', '#F3513F'],
+    lineWidth: 10,
+    background: '#111',
+    weekendBackground: '#2b2b2b',
+    bar: {
+      groupWidth: '95%'
+    },
+    annotationTextStyle: {
+      fontSize: 36,
+      fontWeight: 'bold'
+    },
+    lengendTextStyle: {
+      color: '#fff',
+      fontSize: 26
+    }
+  };
   var chartData;
 
   if (!$chart.size()) {
     return;
   }
 
-  google.charts.setOnLoadCallback(function() {
-    chartData = new google.visualization.DataTable();
-    for (var column in creditReportData.columns) {
-      if (creditReportData.columns.hasOwnProperty(column)) {
-        chartData.addColumn(creditReportData.columns[column]);
-      }
-    }
-    chartData.addRows(creditReportData.rows);
-
-    drawCreditReports();
-  });
-
-  function drawCreditReports() {
+  function drawCreditReports () {
     var chart = new google.visualization.ColumnChart($chart[0]);
     var styles = $module.hasClass('mtp-dashboard-module-standout') ? standoutStyles : normalStyles;
 
@@ -91,7 +79,7 @@ django.jQuery(function($) {
       colors: styles.lines
     });
 
-    google.visualization.events.addListener(chart, 'ready', function() {
+    google.visualization.events.addListener(chart, 'ready', function () {
       var $svg = $chart.find('svg');
       var cli = chart.getChartLayoutInterface();
       var bounds = cli.getChartAreaBoundingBox();
@@ -116,11 +104,11 @@ django.jQuery(function($) {
       });
       $svg.append($title);
 
-      $chart.find('rect').each(function() {
-        if (this.x.baseVal.value == bounds.left &&
-          this.y.baseVal.value == bounds.top &&
-          this.width.baseVal.value == bounds.width &&
-          this.height.baseVal.value == bounds.height) {
+      $chart.find('rect').each(function () {
+        if (this.x.baseVal.value === bounds.left &&
+          this.y.baseVal.value === bounds.top &&
+          this.width.baseVal.value === bounds.width &&
+          this.height.baseVal.value === bounds.height) {
           $chartRect = $(this);
         }
       });
@@ -149,8 +137,20 @@ django.jQuery(function($) {
     });
   }
 
-  $module.on('mtp.dashboard-standout', function() {
+  $module.on('mtp.dashboard-standout', function () {
     $chart.empty();
     drawCreditReports();
-  })
+  });
+
+  google.charts.setOnLoadCallback(function () {
+    chartData = new google.visualization.DataTable();
+    for (var column in creditReportData.columns) {
+      if (creditReportData.columns.hasOwnProperty(column)) {
+        chartData.addColumn(creditReportData.columns[column]);
+      }
+    }
+    chartData.addRows(creditReportData.rows);
+
+    drawCreditReports();
+  });
 });

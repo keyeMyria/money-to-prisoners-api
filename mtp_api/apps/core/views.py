@@ -67,7 +67,7 @@ class DashboardView(AdminViewMixin, TemplateView, metaclass=MediaDefiningClass):
             'all': ('core/css/dashboard.css',)
         }
         js = (
-            'core/js/js.cookie-2.1.1.min.js',
+            'core/js/vendor/js.cookie-2.1.1.min.js',
             'admin/js/vendor/jquery/jquery.min.js',
             'admin/js/jquery.init.js',
             'core/js/dashboard.js',
