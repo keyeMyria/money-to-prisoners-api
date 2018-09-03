@@ -1,12 +1,15 @@
 import logging
 
+from django.db.models import Count, Sum, Subquery, OuterRef, Q
 from django.db.transaction import atomic
 from django.core.management import BaseCommand, CommandError
 
 from credit.models import Credit
+from security.constants import TIME_PERIOD, get_start_date_for_time_period
 from security.models import (
-    SenderProfile, BankTransferSenderDetails, DebitCardSenderDetails, CardholderName, SenderEmail,
-    PrisonerProfile, PrisonerRecipientName,
+    SenderProfile, BankTransferSenderDetails, DebitCardSenderDetails,
+    CardholderName, SenderEmail, PrisonerProfile, PrisonerRecipientName,
+    SenderTotals, PrisonerTotals
 )
 
 logger = logging.getLogger('mtp')
@@ -37,7 +40,7 @@ class Command(BaseCommand):
             raise CommandError('Batch size must be at least 1')
 
         if options['totals']:
-            self.handle_totals(batch_size=batch_size)
+            self.handle_totals()
         else:
             self.handle_update(batch_size=batch_size, recreate=options['recreate'])
 
@@ -75,6 +78,7 @@ class Command(BaseCommand):
         finally:
             self.stdout.write('Updating prisoner profiles for current locations')
             PrisonerProfile.objects.update_current_prisons()
+            self.handle_totals()
 
         self.stdout.write(self.style.SUCCESS('Done'))
 
@@ -102,8 +106,6 @@ class Command(BaseCommand):
             logger.error('Credit %s does not have a payment nor transaction' % credit.pk)
             sender_profile = self.anonymous_sender
 
-        sender_profile.credit_count += 1
-        sender_profile.credit_total += credit.amount
         sender_profile.save()
         return sender_profile
 
@@ -227,41 +229,128 @@ class Command(BaseCommand):
                     PrisonerRecipientName(name=recipient_name), bulk=False
                 )
 
-        prisoner_profile.credit_count += 1
-        prisoner_profile.credit_total += credit.amount
         prisoner_profile.prisons.add(credit.prison)
         prisoner_profile.senders.add(sender)
         prisoner_profile.save()
         return prisoner_profile
 
-    def handle_totals(self, batch_size):
-        profiles = (
-            (SenderProfile, 'sender'),
-            (PrisonerProfile, 'prisoner'),
-        )
-        for model, name in profiles:
-            queryset = model.objects.order_by('pk').all()
-            count = queryset.count()
-            if not count:
-                self.stdout.write(self.style.SUCCESS('No %s profiles to update' % name))
-                return
-            else:
-                self.stdout.write('Updating %d %s profile totals' % (count, name))
-
-            processed_count = 0
-            for offset in range(0, count, batch_size):
-                batch = slice(offset, min(offset + batch_size, count))
-                processed_count += self.process_totals_batch(queryset[batch])
-                if self.verbose:
-                    self.stdout.write('Processed %d %s profiles' % (processed_count, name))
-
+    def handle_totals(self):
+        self.update_sender_profile_counts()
+        self.update_prisoner_profile_counts()
         self.stdout.write(self.style.SUCCESS('Done'))
 
-    @atomic()
-    def process_totals_batch(self, profile_batch):
-        for profile in profile_batch:
-            profile.update_totals()
-        return len(profile_batch)
+    def update_sender_profile_counts(self):
+        self.update_credit_counts()
+        self.update_credit_totals()
+        self.update_prisoner_counts()
+        self.update_prison_counts()
+
+    def update_prisoner_profile_counts(self):
+        self.update_credit_counts()
+        self.update_credit_totals()
+        self.update_sender_counts()
+
+    def update_credit_counts(self):
+        for profile, totals in [
+            (SenderProfile, SenderTotals), (PrisonerProfile, PrisonerTotals)
+        ]:
+            for time_period in TIME_PERIOD.values:
+                start = get_start_date_for_time_period(time_period)
+                related_field = profile.credits.rel.remote_field.name
+                totals.objects.filter(time_period=time_period).update(
+                    credit_count=Subquery(
+                        profile.objects.filter(
+                            id=OuterRef('%s_id' % related_field),
+                        ).annotate(
+                            credit_count=Count(
+                                'credits',
+                                filter=Q(
+                                    credits__received_at__gte=start,
+                                ),
+                                distinct=True
+                            )
+                        ).values('credit_count')[:1]
+                    )
+                )
+
+    def update_credit_totals(self):
+        for profile, totals in [
+            (SenderProfile, SenderTotals), (PrisonerProfile, PrisonerTotals)
+        ]:
+            for time_period in TIME_PERIOD.values:
+                start = get_start_date_for_time_period(time_period)
+                related_field = profile.credits.rel.remote_field.name
+                totals.objects.filter(time_period=time_period).update(
+                    credit_total=Subquery(
+                        profile.objects.filter(
+                            id=OuterRef('%s_id' % related_field),
+                        ).annotate(
+                            credit_total=Sum(
+                                'credits__amount',
+                                filter=Q(
+                                    credits__received_at__gte=start,
+                                )
+                            )
+                        ).values('credit_total')[:1]
+                    )
+                )
+
+    def update_prisoner_counts(self):
+        for time_period in TIME_PERIOD.values:
+            start = get_start_date_for_time_period(time_period)
+            SenderTotals.objects.filter(time_period=time_period).update(
+                prisoner_count=Subquery(
+                    SenderProfile.objects.filter(
+                        id=OuterRef('sender_profile_id'),
+                    ).annotate(
+                        prisoner_count=Count(
+                            'credits__prisoner_profile',
+                            filter=Q(
+                                credits__received_at__gte=start,
+                            ),
+                            distinct=True
+                        )
+                    ).values('prisoner_count')[:1]
+                )
+            )
+
+    def update_prison_counts(self):
+        for time_period in TIME_PERIOD.values:
+            start = get_start_date_for_time_period(time_period)
+            SenderTotals.objects.filter(time_period=time_period).update(
+                prison_count=Subquery(
+                    SenderProfile.objects.filter(
+                        id=OuterRef('sender_profile_id'),
+                    ).annotate(
+                        prison_count=Count(
+                            'credits__prison',
+                            filter=Q(
+                                credits__received_at__gte=start,
+                            ),
+                            distinct=True
+                        )
+                    ).values('prison_count')[:1]
+                )
+            )
+
+    def update_sender_counts(self):
+        for time_period in TIME_PERIOD.values:
+            start = get_start_date_for_time_period(time_period)
+            PrisonerTotals.objects.filter(time_period=time_period).update(
+                sender_count=Subquery(
+                    SenderProfile.objects.filter(
+                        id=OuterRef('sender_profile_id'),
+                    ).annotate(
+                        sender_count=Count(
+                            'credits__sender_profile',
+                            filter=Q(
+                                credits__received_at__gte=start,
+                            ),
+                            distinct=True
+                        )
+                    ).values('sender_count')[:1]
+                )
+            )
 
     @atomic()
     def delete_profiles(self):

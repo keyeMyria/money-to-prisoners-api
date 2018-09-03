@@ -69,8 +69,6 @@ class SenderProfileListFilter(django_filters.FilterSet):
     class Meta:
         model = SenderProfile
         fields = {
-            'credit_count': ['lte', 'gte'],
-            'credit_total': ['lte', 'gte'],
             'modified': ['lt', 'gte'],
         }
 
@@ -129,8 +127,6 @@ class PrisonerProfileListFilter(django_filters.FilterSet):
         fields = {
             'prisoner_number': ['exact'],
             'prisoner_dob': ['exact'],
-            'credit_count': ['lte', 'gte'],
-            'credit_total': ['lte', 'gte'],
             'modified': ['lt', 'gte'],
         }
 

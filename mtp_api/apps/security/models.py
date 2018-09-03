@@ -3,21 +3,19 @@ from itertools import chain
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from model_utils.models import TimeStampedModel
 
 from core.models import ScheduledCommand
-from credit.models import Credit
 from prison.models import Prison
+from .constants import TIME_PERIOD
 from .managers import PrisonProfileManager
 from .signals import prisoner_profile_current_prisons_need_updating
 
 
 class SenderProfile(TimeStampedModel):
-    credit_count = models.IntegerField(default=0)
-    credit_total = models.IntegerField(default=0)
-
     prisons = models.ManyToManyField(Prison, related_name='senders')
 
     class Meta:
@@ -52,14 +50,6 @@ class SenderProfile(TimeStampedModel):
         except TypeError:
             return models.Q(pk=None)
 
-    def update_totals(self):
-        queryset = Credit.objects.filter(self.credit_filters)
-        totals = queryset.aggregate(credit_count=models.Count('pk'),
-                                    credit_total=models.Sum('amount'))
-        self.credit_count = totals.get('credit_count') or 0
-        self.credit_total = totals.get('credit_total') or 0
-        self.save()
-
     def get_sender_names(self):
         yield from (details.sender_name for details in self.bank_transfer_details.all())
         for details in self.debit_card_details.all():
@@ -67,6 +57,16 @@ class SenderProfile(TimeStampedModel):
 
     def get_sorted_sender_names(self):
         return sorted(set(filter(lambda name: (name or '').strip() or _('(Unknown)'), self.get_sender_names())))
+
+
+class SenderTotals(models.Model):
+    credit_count = models.IntegerField(default=0)
+    credit_total = models.IntegerField(default=0)
+    prison_count = models.IntegerField(default=0)
+    prisoner_count = models.IntegerField(default=0)
+
+    time_period = models.CharField(max_length=50, choices=TIME_PERIOD)
+    sender_profile = models.ForeignKey(SenderProfile, on_delete=models.CASCADE)
 
 
 class BankTransferSenderDetails(TimeStampedModel):
@@ -141,8 +141,6 @@ class PrisonerProfile(TimeStampedModel):
     prisoner_number = models.CharField(max_length=250, db_index=True)
     single_offender_id = models.UUIDField(blank=True, null=True)
     prisoner_dob = models.DateField()
-    credit_count = models.IntegerField(default=0)
-    credit_total = models.IntegerField(default=0)
     current_prison = models.ForeignKey(
         Prison, on_delete=models.SET_NULL, null=True, related_name='current_prisoners'
     )
@@ -168,13 +166,14 @@ class PrisonerProfile(TimeStampedModel):
     def credit_filters(self):
         return models.Q(prisoner_name=self.prisoner_name, prisoner_dob=self.prisoner_dob)
 
-    def update_totals(self):
-        queryset = Credit.objects.filter(self.credit_filters)
-        totals = queryset.aggregate(credit_count=models.Count('pk'),
-                                    credit_total=models.Sum('amount'))
-        self.credit_count = totals.get('credit_count') or 0
-        self.credit_total = totals.get('credit_total') or 0
-        self.save()
+
+class PrisonerTotals(models.Model):
+    credit_count = models.IntegerField(default=0)
+    credit_total = models.IntegerField(default=0)
+    sender_count = models.IntegerField(default=0)
+
+    time_period = models.CharField(max_length=50, choices=TIME_PERIOD)
+    prisoner_profile = models.ForeignKey(PrisonerProfile, on_delete=models.CASCADE)
 
 
 class PrisonerRecipientName(models.Model):
@@ -225,3 +224,25 @@ def update_current_prisons(*args, **kwargs):
         delete_after_next=True
     )
     job.save()
+
+
+@receiver(post_save, sender=SenderProfile)
+def post_save_create_sender_totals(sender, profile, created, *args, **kwargs):
+    if created:
+        sender_profiles = []
+        for time_period in TIME_PERIOD:
+            sender_profiles.append(SenderTotals(
+                sender_profile=profile, time_period=time_period
+            ))
+        SenderProfile.objects.bulk_create(sender_profiles)
+
+
+@receiver(post_save, sender=PrisonerProfile)
+def post_save_create_prisoner_totals(sender, profile, created, *args, **kwargs):
+    if created:
+        prisoner_profiles = []
+        for time_period in TIME_PERIOD:
+            prisoner_profiles.append(PrisonerTotals(
+                prisoner_profile=profile, time_period=time_period
+            ))
+        PrisonerProfile.objects.bulk_create(prisoner_profiles)
