@@ -338,8 +338,8 @@ class Command(BaseCommand):
             start = get_start_date_for_time_period(time_period)
             PrisonerTotals.objects.filter(time_period=time_period).update(
                 sender_count=Subquery(
-                    SenderProfile.objects.filter(
-                        id=OuterRef('sender_profile_id'),
+                    PrisonerProfile.objects.filter(
+                        id=OuterRef('prisoner_profile_id'),
                     ).annotate(
                         sender_count=Count(
                             'credits__sender_profile',

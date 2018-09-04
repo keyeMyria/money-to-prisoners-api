@@ -112,6 +112,13 @@ class SenderProfileListTestCase(SecurityViewTestCase):
         for sender in sender_profiles:
             self.assertTrue(sender.id in [d['id'] for d in data])
 
+    def test_filter_delete_this_test(self):
+        data = self._get_list(
+            self._get_authorised_user(),
+            totals__time_period='all_time'
+        )['results']
+        print(data)
+
 
 class SenderCreditListTestCase(SecurityViewTestCase):
 

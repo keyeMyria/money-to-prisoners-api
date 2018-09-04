@@ -3,7 +3,7 @@ from itertools import chain
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from model_utils.models import TimeStampedModel
@@ -66,7 +66,9 @@ class SenderTotals(models.Model):
     prisoner_count = models.IntegerField(default=0)
 
     time_period = models.CharField(max_length=50, choices=TIME_PERIOD)
-    sender_profile = models.ForeignKey(SenderProfile, on_delete=models.CASCADE)
+    sender_profile = models.ForeignKey(
+        SenderProfile, on_delete=models.CASCADE, related_name='totals'
+    )
 
 
 class BankTransferSenderDetails(TimeStampedModel):
@@ -173,7 +175,9 @@ class PrisonerTotals(models.Model):
     sender_count = models.IntegerField(default=0)
 
     time_period = models.CharField(max_length=50, choices=TIME_PERIOD)
-    prisoner_profile = models.ForeignKey(PrisonerProfile, on_delete=models.CASCADE)
+    prisoner_profile = models.ForeignKey(
+        PrisonerProfile, on_delete=models.CASCADE, related_name='totals'
+    )
 
 
 class PrisonerRecipientName(models.Model):
@@ -226,23 +230,23 @@ def update_current_prisons(*args, **kwargs):
     job.save()
 
 
-@receiver(post_save, sender=SenderProfile)
-def post_save_create_sender_totals(sender, profile, created, *args, **kwargs):
+@receiver(post_save, sender=SenderProfile, dispatch_uid='post_save_create_sender_totals')
+def post_save_create_sender_totals(sender, instance, created, *args, **kwargs):
     if created:
         sender_profiles = []
         for time_period in TIME_PERIOD:
             sender_profiles.append(SenderTotals(
-                sender_profile=profile, time_period=time_period
+                sender_profile=instance, time_period=time_period
             ))
         SenderProfile.objects.bulk_create(sender_profiles)
 
 
-@receiver(post_save, sender=PrisonerProfile)
-def post_save_create_prisoner_totals(sender, profile, created, *args, **kwargs):
+@receiver(post_save, sender=PrisonerProfile, dispatch_uid='post_save_create_prisoner_totals')
+def post_save_create_prisoner_totals(sender, instance, created, *args, **kwargs):
     if created:
         prisoner_profiles = []
         for time_period in TIME_PERIOD:
             prisoner_profiles.append(PrisonerTotals(
-                prisoner_profile=profile, time_period=time_period
+                prisoner_profile=instance, time_period=time_period
             ))
         PrisonerProfile.objects.bulk_create(prisoner_profiles)

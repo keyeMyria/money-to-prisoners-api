@@ -3,12 +3,11 @@ from rest_framework import serializers
 from prison.models import Prison
 from .models import (
     SenderProfile, BankTransferSenderDetails, DebitCardSenderDetails,
-    PrisonerProfile, SavedSearch, SearchFilter
+    PrisonerProfile, SavedSearch, SearchFilter, SenderTotals, PrisonerTotals
 )
 
 
 class BankTransferSenderDetailsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = BankTransferSenderDetails
         fields = (
@@ -40,20 +39,23 @@ class DebitCardSenderDetailsSerializer(serializers.ModelSerializer):
         return list(obj.sender_emails.values_list('email', flat=True))
 
 
+class SenderTotalsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SenderTotals
+        fields = '__all__'
+
+
 class SenderProfileSerializer(serializers.ModelSerializer):
     bank_transfer_details = BankTransferSenderDetailsSerializer(many=True)
     debit_card_details = DebitCardSenderDetailsSerializer(many=True)
     prisoner_count = serializers.IntegerField()
     prison_count = serializers.IntegerField()
+    totals = SenderTotalsSerializer(many=True)
 
     class Meta:
         model = SenderProfile
         fields = (
             'id',
-            'credit_count',
-            'credit_total',
-            'prisoner_count',
-            'prison_count',
             'bank_transfer_details',
             'debit_card_details',
             'created',
@@ -62,7 +64,6 @@ class SenderProfileSerializer(serializers.ModelSerializer):
 
 
 class PrisonSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Prison
         fields = (
@@ -71,19 +72,23 @@ class PrisonSerializer(serializers.ModelSerializer):
         )
 
 
+class PrisonerTotalsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrisonerTotals
+        fields = '__all__'
+
+
 class PrisonerProfileSerializer(serializers.ModelSerializer):
     sender_count = serializers.IntegerField()
     prisons = PrisonSerializer(many=True)
     current_prison = PrisonSerializer()
     recipient_names = serializers.SerializerMethodField()
+    totals = PrisonerTotalsSerializer(many=True)
 
     class Meta:
         model = PrisonerProfile
         fields = (
             'id',
-            'credit_count',
-            'credit_total',
-            'sender_count',
             'prisoner_name',
             'prisoner_number',
             'prisoner_dob',
@@ -99,7 +104,6 @@ class PrisonerProfileSerializer(serializers.ModelSerializer):
 
 
 class SearchFilterSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SearchFilter
         fields = ('field', 'value',)

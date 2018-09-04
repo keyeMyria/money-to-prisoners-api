@@ -66,6 +66,14 @@ class SenderProfileListFilter(django_filters.FilterSet):
     prison_count__lte = django_filters.NumberFilter(field_name='prison_count', lookup_expr='lte')
     prison_count__gte = django_filters.NumberFilter(field_name='prison_count', lookup_expr='gte')
 
+    totals__time_period = django_filters.CharFilter(field_name='totals__time_period')
+    totals__credit_count__gte = django_filters.NumberFilter(
+        field_name='totals__credit_count', lookup_expr='gte'
+    )
+    totals__credit_count__lte = django_filters.NumberFilter(
+        field_name='totals__credit_count', lookup_expr='lte'
+    )
+
     class Meta:
         model = SenderProfile
         fields = {
@@ -76,10 +84,7 @@ class SenderProfileListFilter(django_filters.FilterSet):
 class SenderProfileView(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
-    queryset = SenderProfile.objects.all().annotate(
-        prisoner_count=Count('prisoners', distinct=True),
-        prison_count=Count('prisons', distinct=True),
-    )
+    queryset = SenderProfile.objects.all()
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter,)
     filter_class = SenderProfileListFilter
     serializer_class = SenderProfileSerializer
@@ -134,9 +139,7 @@ class PrisonerProfileListFilter(django_filters.FilterSet):
 class PrisonerProfileView(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
-    queryset = PrisonerProfile.objects.all().annotate(
-        sender_count=Count('senders', distinct=True)
-    )
+    queryset = PrisonerProfile.objects.all()
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter,)
     filter_class = PrisonerProfileListFilter
     serializer_class = PrisonerProfileSerializer
