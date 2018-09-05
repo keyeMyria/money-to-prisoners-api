@@ -14,7 +14,7 @@ def create_profile_totals(apps, schema_editor):
 
     sender_profiles = []
     prisoner_profiles = []
-    for time_period in TIME_PERIOD:
+    for time_period in TIME_PERIOD.values:
         for sender_profile in SenderProfile.objects.all():
             sender_profiles.append(SenderTotals(
                 sender_profile=sender_profile, time_period=time_period

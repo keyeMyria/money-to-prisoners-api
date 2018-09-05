@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Count, Sum, Subquery, OuterRef, Q
+from django.db.models.functions import Coalesce
 from django.db.transaction import atomic
 from django.core.management import BaseCommand, CommandError
 
@@ -258,7 +259,7 @@ class Command(BaseCommand):
                 start = get_start_date_for_time_period(time_period)
                 related_field = profile.credits.rel.remote_field.name
                 totals.objects.filter(time_period=time_period).update(
-                    credit_count=Subquery(
+                    credit_count=Coalesce(Subquery(
                         profile.objects.filter(
                             id=OuterRef('%s_id' % related_field),
                         ).annotate(
@@ -270,7 +271,7 @@ class Command(BaseCommand):
                                 distinct=True
                             )
                         ).values('credit_count')[:1]
-                    )
+                    ), 0)
                 )
 
     def update_credit_totals(self):
@@ -281,7 +282,7 @@ class Command(BaseCommand):
                 start = get_start_date_for_time_period(time_period)
                 related_field = profile.credits.rel.remote_field.name
                 totals.objects.filter(time_period=time_period).update(
-                    credit_total=Subquery(
+                    credit_total=Coalesce(Subquery(
                         profile.objects.filter(
                             id=OuterRef('%s_id' % related_field),
                         ).annotate(
@@ -292,14 +293,14 @@ class Command(BaseCommand):
                                 )
                             )
                         ).values('credit_total')[:1]
-                    )
+                    ), 0)
                 )
 
     def update_prisoner_counts(self):
         for time_period in TIME_PERIOD.values:
             start = get_start_date_for_time_period(time_period)
             SenderTotals.objects.filter(time_period=time_period).update(
-                prisoner_count=Subquery(
+                prisoner_count=Coalesce(Subquery(
                     SenderProfile.objects.filter(
                         id=OuterRef('sender_profile_id'),
                     ).annotate(
@@ -311,14 +312,14 @@ class Command(BaseCommand):
                             distinct=True
                         )
                     ).values('prisoner_count')[:1]
-                )
+                ), 0)
             )
 
     def update_prison_counts(self):
         for time_period in TIME_PERIOD.values:
             start = get_start_date_for_time_period(time_period)
             SenderTotals.objects.filter(time_period=time_period).update(
-                prison_count=Subquery(
+                prison_count=Coalesce(Subquery(
                     SenderProfile.objects.filter(
                         id=OuterRef('sender_profile_id'),
                     ).annotate(
@@ -330,14 +331,14 @@ class Command(BaseCommand):
                             distinct=True
                         )
                     ).values('prison_count')[:1]
-                )
+                ), 0)
             )
 
     def update_sender_counts(self):
         for time_period in TIME_PERIOD.values:
             start = get_start_date_for_time_period(time_period)
             PrisonerTotals.objects.filter(time_period=time_period).update(
-                sender_count=Subquery(
+                sender_count=Coalesce(Subquery(
                     PrisonerProfile.objects.filter(
                         id=OuterRef('prisoner_profile_id'),
                     ).annotate(
@@ -349,7 +350,7 @@ class Command(BaseCommand):
                             distinct=True
                         )
                     ).values('sender_count')[:1]
-                )
+                ), 0)
             )
 
     @atomic()

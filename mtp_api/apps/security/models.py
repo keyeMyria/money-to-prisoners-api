@@ -233,20 +233,20 @@ def update_current_prisons(*args, **kwargs):
 @receiver(post_save, sender=SenderProfile, dispatch_uid='post_save_create_sender_totals')
 def post_save_create_sender_totals(sender, instance, created, *args, **kwargs):
     if created:
-        sender_profiles = []
-        for time_period in TIME_PERIOD:
-            sender_profiles.append(SenderTotals(
+        sender_totals = []
+        for time_period in TIME_PERIOD.values:
+            sender_totals.append(SenderTotals(
                 sender_profile=instance, time_period=time_period
             ))
-        SenderProfile.objects.bulk_create(sender_profiles)
+        SenderTotals.objects.bulk_create(sender_totals)
 
 
 @receiver(post_save, sender=PrisonerProfile, dispatch_uid='post_save_create_prisoner_totals')
 def post_save_create_prisoner_totals(sender, instance, created, *args, **kwargs):
     if created:
-        prisoner_profiles = []
-        for time_period in TIME_PERIOD:
-            prisoner_profiles.append(PrisonerTotals(
+        prisoner_totals = []
+        for time_period in TIME_PERIOD.values:
+            prisoner_totals.append(PrisonerTotals(
                 prisoner_profile=instance, time_period=time_period
             ))
-        PrisonerProfile.objects.bulk_create(prisoner_profiles)
+        PrisonerTotals.objects.bulk_create(prisoner_totals)

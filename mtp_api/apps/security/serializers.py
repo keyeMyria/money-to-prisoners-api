@@ -48,8 +48,6 @@ class SenderTotalsSerializer(serializers.ModelSerializer):
 class SenderProfileSerializer(serializers.ModelSerializer):
     bank_transfer_details = BankTransferSenderDetailsSerializer(many=True)
     debit_card_details = DebitCardSenderDetailsSerializer(many=True)
-    prisoner_count = serializers.IntegerField()
-    prison_count = serializers.IntegerField()
     totals = SenderTotalsSerializer(many=True)
 
     class Meta:
@@ -60,6 +58,7 @@ class SenderProfileSerializer(serializers.ModelSerializer):
             'debit_card_details',
             'created',
             'modified',
+            'totals',
         )
 
 
@@ -79,7 +78,6 @@ class PrisonerTotalsSerializer(serializers.ModelSerializer):
 
 
 class PrisonerProfileSerializer(serializers.ModelSerializer):
-    sender_count = serializers.IntegerField()
     prisons = PrisonSerializer(many=True)
     current_prison = PrisonSerializer()
     recipient_names = serializers.SerializerMethodField()
@@ -97,6 +95,7 @@ class PrisonerProfileSerializer(serializers.ModelSerializer):
             'prisons',
             'current_prison',
             'recipient_names',
+            'totals',
         )
 
     def get_recipient_names(self, obj):
